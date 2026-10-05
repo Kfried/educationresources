@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adding in Columns: Denary and Binary</title>
+<style>
+:root{--bg:#f2f6fc;--ink:#18223f;--muted:#55628a;--card:#ffffff;--line:#d3dcf0;--red:#d7263d;--green:#16874a;--accent:#2f5bea;--amber:#b45f00}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.35}
+.wrap{max-width:1000px;margin:0 auto;padding:14px clamp(10px,3vw,24px) 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+h1{font-size:clamp(22px,4vw,32px);margin:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:700;padding:9px 16px;border-radius:999px;border:2px solid var(--accent);background:#fff;color:var(--accent);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#fff}
+.blurb{color:var(--muted);margin:8px 0 0;font-size:clamp(14px,2vw,17px)}
+.controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin:12px 0}
+.controls label{font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px}
+.controls select{font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line)}
+.controls .grp{display:inline-flex;gap:8px;flex-wrap:wrap}
+.seg{display:inline-flex;border:2px solid var(--accent);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-weight:700;padding:8px 14px;border:0;background:#fff;color:var(--accent);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.btn{font:inherit;font-weight:700;padding:9px 16px;border-radius:10px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.glow{background:var(--green);border-color:var(--green);color:#fff;animation:glow 1s ease-in-out infinite alternate}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@keyframes glow{from{box-shadow:0 0 0 0 rgba(22,135,74,.5)}to{box-shadow:0 0 0 10px rgba(22,135,74,0)}}
+.score{margin-left:auto;font-weight:700;color:var(--muted)}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 16px}
+.hide{display:none!important}
+button:focus-visible,[role="button"]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* rules strip */
+.rules{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.rc{border:2px solid var(--line);border-radius:12px;padding:6px 8px;background:#fff;text-align:center;font-size:clamp(11px,1.8vw,16px);transition:background .2s,color .2s,border-color .2s}
+.rc b{display:block}
+.rc span{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700}
+.rc.on{background:var(--accent);border-color:var(--accent);color:#fff;transform:translateY(-2px)}
+
+/* column grid */
+.gridcard{text-align:center}
+.grid{--cell:min(64px,calc((min(100vw,1000px) - 90px) / (var(--n) + 1)));display:grid;grid-template-columns:calc(var(--cell)*.75) repeat(var(--n),var(--cell));gap:5px;justify-content:center;align-items:center;margin:6px auto}
+.cell{height:var(--cell);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;font-size:calc(var(--cell)*.6);border-radius:12px;position:relative;transition:background .2s,border-color .2s}
+.cell.hd{height:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:clamp(10px,calc(var(--cell)*.3),18px)}
+.cell.hd span{display:block;width:100%;background:hsl(var(--h),62%,46%);color:#fff;border-radius:8px;padding:3px 0;font-weight:800;line-height:1.15}
+.cell.hd.hact span{box-shadow:0 0 0 3px var(--accent)}
+.cell.carry{height:calc(var(--cell)*.62);font-size:calc(var(--cell)*.42);border:2px dashed var(--line);color:transparent}
+.cell.carry.on{border:2px solid #f08a00;background:#fff3dc;color:var(--amber)}
+.cell.carry.big{height:var(--cell);font-size:calc(var(--cell)*.6)}
+.cell.num,.cell.res{background:#fff;border:2px solid var(--line)}
+.cell.res{border:3px solid var(--accent)}
+.cell.res.empty{border-style:dashed;border-color:var(--line)}
+.cell.act{background:#eaf0ff;border-color:var(--accent)}
+.cell.pend{color:transparent!important}
+.cell.ok{background:#e2f6eb;border-color:var(--green);color:var(--green)}
+.cell.ghost{background:transparent;border:2px dashed var(--line);color:var(--line)}
+.cell.tg{background:#fff;border:3px solid var(--line);cursor:pointer;user-select:none;-webkit-user-select:none}
+.cell.tg:hover{border-color:var(--accent)}
+.cell.tg.one{background:linear-gradient(#ffd75e,#f5a800);border-color:#b97a00}
+.rline{grid-column:1/-1;height:5px;background:var(--ink);border-radius:3px;margin:2px 0}
+.op{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;font-size:calc(var(--cell)*.6);color:var(--muted);text-align:center}
+.op.lab{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;text-align:right;padding-right:8px;line-height:1.15}
+.pop{animation:popin .4s}
+@keyframes popin{from{transform:scale(.4);opacity:.2}to{transform:scale(1);opacity:1}}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.work{min-height:1.5em;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;font-size:clamp(20px,4.6vw,36px);margin-top:8px}
+.work sub{font-size:.55em}
+.cy{color:var(--amber)}
+.msg{text-align:center;font-weight:600;font-size:clamp(15px,2.4vw,20px);margin:12px auto 4px;min-height:3.2em;max-width:820px}
+
+/* tiles and tray */
+.traycard{margin-top:10px;text-align:center}
+.trayrow{display:flex;gap:clamp(6px,1.4vw,12px);justify-content:center;align-items:center;flex-wrap:wrap;margin:6px 0}
+.tlbl{font-weight:800;color:var(--muted);min-width:64px;text-align:right;padding-right:6px}
+.tile{width:clamp(54px,10vw,84px);aspect-ratio:1;border-radius:18px;background:linear-gradient(#ffd75e,#f5a800);color:#18223f;font-weight:900;font-size:clamp(28px,5vw,46px);display:flex;align-items:center;justify-content:center;box-shadow:0 5px 0 #b97a00;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .12s}
+.tile:hover{transform:translateY(-2px)}
+.tile.small{width:clamp(38px,7vw,56px);font-size:clamp(20px,3.6vw,30px);border-radius:12px;box-shadow:0 4px 0 #b97a00}
+.tile.sel{outline:4px solid var(--accent);transform:translateY(-5px)}
+.flyer{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;margin:0;box-shadow:0 8px 14px rgba(0,0,0,.25);transition:none}
+.conf{position:fixed;width:9px;height:14px;z-index:999;pointer-events:none}
+
+/* rules tab */
+.rulecards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px}
+.rcard{border:3px solid var(--line);border-radius:16px;padding:10px 14px;background:#fff;cursor:pointer;text-align:left;transition:background .2s,border-color .2s,transform .15s}
+.rcard:hover{border-color:var(--accent)}
+.rcard.on{background:#eaf0ff;border-color:var(--accent);transform:translateY(-2px)}
+.rcard .rt{font-weight:800;color:var(--accent);font-size:clamp(14px,2vw,17px)}
+.rcard .re{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;font-size:clamp(17px,3.2vw,28px);margin:2px 0}
+.rcard .rs{color:var(--muted);font-size:clamp(13px,1.8vw,15px)}
+.ex{margin-top:12px;text-align:center}
+.ex h2{margin:0 0 4px;font-size:clamp(16px,2.6vw,22px)}
+.ex .hint{color:var(--muted);font-size:15px;margin:0 0 4px}
+.ex .grid{--cell:clamp(56px,15vw,84px);grid-template-columns:auto var(--cell) var(--cell)}
+.exeq{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;font-size:clamp(20px,4.4vw,34px);margin-top:8px}
+.exeq sub{font-size:.55em}
+.extext{font-weight:600;font-size:clamp(15px,2.3vw,19px);max-width:760px;margin:6px auto 0;min-height:3em}
+.note{margin-top:12px;background:#fff8e6;border-color:#f0c56a}
+.note b{color:var(--amber)}
+.note table{margin:8px auto 0;border-collapse:collapse;font-size:clamp(14px,2.2vw,17px)}
+.note td,.note th{padding:4px 12px;border-bottom:1px solid #f0d99a;text-align:center}
+@media (max-width:560px){.rulecards{grid-template-columns:1fr}.rules{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Adding in Columns</h1>
+    <nav class="tabs" role="tablist" aria-label="Choose activity">
+      <button role="tab" id="tabDen" aria-selected="true">1 · Denary method</button>
+      <button role="tab" id="tabRules" aria-selected="false">2 · Binary rules</button>
+      <button role="tab" id="tabBin" aria-selected="false">3 · Binary addition</button>
+    </nav>
+  </header>
+  <p id="blurb" class="blurb"></p>
+
+  <div class="controls" id="addCtl">
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+      <button data-mode="watch" aria-pressed="true">Watch</button>
+      <button data-mode="try" aria-pressed="false">Your turn</button>
+    </div>
+    <label id="denSize">Digits
+      <select id="digSel"><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option></select>
+    </label>
+    <label id="binSize" class="hide">Bits
+      <select id="bitSel"><option value="4">4</option><option value="8" selected>8</option></select>
+    </label>
+    <button class="btn" id="btnNew">New problem</button>
+    <span class="grp" id="watchCtl">
+      <button class="btn" id="btnBack">◀ Back</button>
+      <button class="btn primary" id="btnNext">Next ▶</button>
+      <button class="btn" id="btnAuto">Auto-play</button>
+      <button class="btn" id="btnRestart">Restart</button>
+    </span>
+    <span class="grp hide" id="tryCtl"><button class="btn" id="btnHint">Hint</button></span>
+    <span class="score" id="score"></span>
+  </div>
+
+  <main id="addStage">
+    <section id="ruleStrip" class="rules hide" aria-label="The four rules of binary addition">
+      <div class="rc" data-r="1"><b>Rule 1</b><span>0 + 0 = 0</span></div>
+      <div class="rc" data-r="2"><b>Rule 2</b><span>1 + 0 = 1</span></div>
+      <div class="rc" data-r="3"><b>Rule 3</b><span>1 + 1 = 0 carry 1</span></div>
+      <div class="rc" data-r="4"><b>Rule 4</b><span>1 + 1 + 1 = 1 carry 1</span></div>
+    </section>
+    <section class="card gridcard">
+      <div id="gridHost"></div>
+      <div class="work" id="work"></div>
+    </section>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <section class="card traycard hide" id="tryTray"></section>
+  </main>
+
+  <main id="rulesStage" class="hide">
+    <div class="card">
+      <div class="rulecards" id="ruleCards"></div>
+    </div>
+    <div class="card ex">
+      <h2>Try any column</h2>
+      <p class="hint">Click the digits in the column to swap them between 0 and 1.</p>
+      <div id="exHost"></div>
+      <div class="exeq" id="exEq"></div>
+      <div class="extext" id="exText" role="status" aria-live="polite"></div>
+    </div>
+    <div class="card note">
+      <b>The trick:</b> a carried 1 counts as a 1. Just count the 1s in the column, then pick the rule.
+      <table>
+        <tr><th>1s in the column</th><th>Rule</th><th>Write</th><th>Carry</th></tr>
+        <tr><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+        <tr><td>1</td><td>2</td><td>1</td><td>0</td></tr>
+        <tr><td>2</td><td>3</td><td>0</td><td>1</td></tr>
+        <tr><td>3</td><td>4</td><td>1</td><td>1</td></tr>
+      </table>
+    </div>
+  </main>
+  <noscript>This activity needs JavaScript switched on.</noscript>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var WORDS = ['no', 'one', 'two', 'three'];
+
+  var S = {
+    tab: 'den', mode: { den: 'watch', bin: 'watch' }, digits: 3, bits: 8,
+    model: null, prev: '', step: 0, done: 0,
+    selDigit: null, selCarry: null, tries: 0, hint: 0, tryMsg: '', tryWork: '',
+    busy: false, pending: {}, score: { den: 0, bin: 0 }, scored: false,
+    epoch: 0, auto: null, ruleLit: 0,
+    ex: { a: 1, b: 1, c: 0 }, exPend: false, exEp: 0
+  };
+
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function rectOf(sel) { var el = document.querySelector(sel); return el ? el.getBoundingClientRect() : null; }
+
+  /* ---------- animation helpers ---------- */
+  var flyers = [];
+  function clearFlyers() {
+    flyers.forEach(function (f) { if (f.parentNode) f.parentNode.removeChild(f); });
+    flyers = [];
+  }
+  function fly(label, from, to, done, size) {
+    if (!from || !to) { if (done) done(); return; }
+    var w = size || Math.min(to.width, to.height) * 0.9;
+    var el = document.createElement('div');
+    el.className = 'tile flyer'; el.textContent = label;
+    el.style.width = w + 'px'; el.style.height = w + 'px';
+    el.style.fontSize = Math.round(w * 0.6) + 'px'; el.style.borderRadius = Math.round(w * 0.25) + 'px';
+    document.body.appendChild(el); flyers.push(el);
+    var x0 = from.left + from.width / 2, y0 = from.top + from.height / 2;
+    var x1 = to.left + to.width / 2, y1 = to.top + to.height / 2;
+    var dist = Math.hypot(x1 - x0, y1 - y0);
+    var arc = Math.min(200, 50 + dist * 0.3);
+    var dur = reduce ? 1 : Math.min(800, 380 + dist * 0.5);
+    var spin = (x1 >= x0 ? 1 : -1) * (300 + Math.random() * 160);
+    var t0 = performance.now();
+    function frame(now) {
+      var t = Math.min(1, (now - t0) / dur);
+      var x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t - arc * 4 * t * (1 - t);
+      el.style.transform = 'translate(' + (x - w / 2) + 'px,' + (y - w / 2) + 'px) rotate(' + (spin * t) + 'deg) scale(' + (1 - 0.25 * t) + ')';
+      if (t < 1) requestAnimationFrame(frame);
+      else {
+        if (el.parentNode) el.parentNode.removeChild(el);
+        var i = flyers.indexOf(el); if (i >= 0) flyers.splice(i, 1);
+        if (done) done();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  function pop(key) {
+    var el = document.querySelector('[data-key="' + key + '"]');
+    if (!el) return;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  }
+  function confetti() {
+    if (reduce) return;
+    var host = $('#gridHost'); if (!host) return;
+    var r = host.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var cols = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#8338ec'];
+    for (var i = 0; i < 36; i++) {
+      (function (i) {
+        var d = document.createElement('div');
+        d.className = 'conf'; d.style.background = cols[i % 5]; d.style.left = cx + 'px'; d.style.top = cy + 'px';
+        document.body.appendChild(d);
+        var a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220;
+        var dx = Math.cos(a) * v, dy = Math.sin(a) * v - 120;
+        var anim = d.animate([
+          { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(' + dx + 'px,' + (dy + 260) + 'px) rotate(' + (Math.random() * 720) + 'deg)', opacity: 0 }
+        ], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.4,1)' });
+        anim.onfinish = function () { d.remove(); };
+      })(i);
+    }
+  }
+
+  /* ---------- model ---------- */
+  function buildModel(A, B, n, base) {
+    var cols = [], carry = 0, i, sum;
+    for (i = 0; i < n; i++) {
+      sum = A[i] + B[i] + carry;
+      cols.push({ a: A[i], b: B[i], cin: carry, sum: sum, digit: sum % base, cout: Math.floor(sum / base), extra: false });
+      carry = cols[i].cout;
+    }
+    if (carry > 0) cols.push({ a: 0, b: 0, cin: carry, sum: carry, digit: carry, cout: 0, extra: true });
+    return { cols: cols, n: cols.length, len: n, base: base, A: A, B: B };
+  }
+  function ruleOf(col) { return col.a + col.b + col.cin + 1; }
+  function numStr(arr) { return arr.slice().reverse().join(''); }
+  function resStr(m) { return m.cols.map(function (c) { return c.digit; }).reverse().join(''); }
+  function grp(s) {
+    var out = [], i = s.length;
+    while (i > 0) { out.unshift(s.slice(Math.max(0, i - 4), i)); i -= 4; }
+    return out.join(' ');
+  }
+  function base() { return S.tab === 'den' ? 10 : 2; }
+
+  function newProblem() {
+    var b = base(), n = b === 10 ? S.digits : S.bits, tries = 0, m, A, B, i, carries, ok, needR4, key;
+    needR4 = b === 2 && n >= 8 && Math.random() < 0.6;
+    do {
+      A = []; B = [];
+      for (i = 0; i < n; i++) { A.push(rnd(0, b - 1)); B.push(rnd(0, b - 1)); }
+      if (b === 10) { if (A[n - 1] === 0) A[n - 1] = rnd(1, 9); if (B[n - 1] === 0) B[n - 1] = rnd(1, 9); }
+      m = buildModel(A, B, n, b);
+      carries = m.cols.filter(function (c) { return c.cout > 0; }).length;
+      key = numStr(A) + '+' + numStr(B);
+      if (b === 10) ok = carries >= (Math.random() < 0.5 ? 2 : 1);
+      else ok = carries >= 2 && m.n === n && (!needR4 || m.cols.some(function (c) { return ruleOf(c) === 4; }));
+      if (key === S.prev) ok = false;
+      tries++;
+    } while (!ok && tries < 400);
+    S.prev = key; S.model = m;
+    resetProgress();
+    S.scored = false;
+    render();
+  }
+  function resetProgress() {
+    stopAuto();
+    S.epoch++; clearFlyers();
+    S.pending = {}; S.busy = false;
+    S.step = 0; S.done = 0; S.selDigit = null; S.selCarry = null; S.tries = 0; S.hint = 0;
+    S.tryWork = ''; S.ruleLit = 0;
+    S.tryMsg = 'Your turn! Start on the right, in the ' + colName(0) + ' column. Add it up, choose what to write and what to carry, then press "Check column".';
+  }
+
+  /* ---------- naming helpers (use the current model's base) ---------- */
+  function mb() { return S.model.base; }
+  function val(c) { return Math.pow(mb(), c); }
+  function colName(c) { return mb() === 10 ? (c === 0 ? 'Units' : val(c) + 's') : val(c) + 's'; }
+  function unitName(c) { return mb() === 10 ? (c === 0 ? 'units' : val(c) + 's') : val(c) + 's'; }
+  function hdr(c) { return mb() === 10 ? colName(c) : String(val(c)); }
+  function hue(c) { return mb() === 10 ? (c * 60 + 205) % 360 : (c * 37 + 205) % 360; }
+
+  /* ---------- state ---------- */
+  function state() {
+    var m = S.model, M = m.n;
+    if (S.mode[S.tab] === 'watch') {
+      var s = S.step;
+      if (s === 0) return { done: 0, active: -1, phase: 'intro' };
+      if (s >= 2 * M + 1) return { done: M, active: -1, phase: 'end' };
+      var k = (s - 1) >> 1;
+      return { done: k, active: k, phase: ((s - 1) % 2 === 0) ? 'add' : 'write' };
+    }
+    if (S.done >= M) return { done: M, active: -1, phase: 'end' };
+    return { done: S.done, active: S.done, phase: 'try' };
+  }
+  function rv(c, st) { return c < st.done || (c === st.active && st.phase === 'write'); }
+
+  /* ---------- rendering ---------- */
+  function gridHTML(st) {
+    var m = S.model, N = m.n, h = '<div class="grid" style="--n:' + N + '">', p, c, col, on, vis, cls;
+    h += '<div></div>';
+    for (p = 0; p < N; p++) { c = N - 1 - p; h += '<div class="cell hd' + (c === st.active ? ' hact' : '') + '" style="--h:' + hue(c) + '"><span>' + hdr(c) + '</span></div>'; }
+    h += '<div class="op"></div>';
+    for (p = 0; p < N; p++) {
+      c = N - 1 - p; on = c >= 1 && rv(c - 1, st) && m.cols[c - 1].cout > 0;
+      h += '<div class="cell carry' + (on ? ' on' : '') + (S.pending['k' + c] ? ' pend' : '') + '" data-key="k' + c + '">' + (on ? '1' : '') + '</div>';
+    }
+    h += '<div class="op"></div>';
+    for (p = 0; p < N; p++) { c = N - 1 - p; col = m.cols[c]; h += '<div class="cell num' + (c === st.active ? ' act' : '') + '" data-key="a' + c + '">' + (col.extra ? '' : col.a) + '</div>'; }
+    h += '<div class="op">+</div>';
+    for (p = 0; p < N; p++) { c = N - 1 - p; col = m.cols[c]; h += '<div class="cell num' + (c === st.active ? ' act' : '') + '" data-key="b' + c + '">' + (col.extra ? '' : col.b) + '</div>'; }
+    h += '<div class="rline"></div><div class="op"></div>';
+    for (p = 0; p < N; p++) {
+      c = N - 1 - p; col = m.cols[c]; vis = rv(c, st);
+      cls = 'cell res' + (vis ? '' : ' empty') + (c === st.active && !vis ? ' act' : '') + (S.pending['r' + c] ? ' pend' : '') + (st.phase === 'end' ? ' ok' : '');
+      h += '<div class="' + cls + '" data-key="r' + c + '">' + (vis ? col.digit : '') + '</div>';
+    }
+    return h + '</div>';
+  }
+
+  function fmtSum(col) {
+    if (col.extra) return '<span class="cy">1</span>';
+    return col.a + ' + ' + col.b + (col.cin ? ' + <span class="cy">' + col.cin + '</span>' : '');
+  }
+  function ansHTML(col) { return mb() === 2 ? col.sum.toString(2) + '<sub>2</sub>' : String(col.sum); }
+  function endText() {
+    var m = S.model, bin = m.base === 2, A = numStr(m.A), B = numStr(m.B), R = resStr(m);
+    if (!bin) return 'Answer: ' + A + ' + ' + B + ' = ' + R + '.';
+    return 'Answer: ' + grp(A) + ' + ' + grp(B) + ' = ' + grp(R) + '. In denary that is ' +
+      parseInt(A, 2) + ' + ' + parseInt(B, 2) + ' = ' + parseInt(R, 2) + '.';
+  }
+
+  function describe(st) {
+    var m = S.model, bin = m.base === 2, c = st.active, col = c >= 0 ? m.cols[c] : null, w = '', t = '', rule = 0, ones, r;
+    if (S.mode[S.tab] === 'watch') {
+      if (st.phase === 'intro') {
+        t = bin ? 'Line the two numbers up so the columns match. Start on the right with the 1s column and work left, one column at a time. Press Next to begin.'
+                : 'Line the numbers up so units are above units, tens above tens and so on. Start on the right with the Units column and work left. Press Next to begin.';
+      } else if (st.phase === 'add') {
+        w = fmtSum(col) + ' = <b>' + ansHTML(col) + '</b>';
+        if (bin) {
+          ones = col.a + col.b + col.cin; rule = ones + 1;
+          t = 'Count the 1s in the ' + colName(c) + ' column' + (col.cin ? ' (the carried 1 counts too)' : '') + ': there ' +
+            (ones === 1 ? 'is one 1' : 'are ' + WORDS[ones] + ' 1s') + '. That is Rule ' + rule + '.';
+        } else if (col.extra) {
+          t = 'There is nothing left to add except the carried 1, so bring it down into the ' + colName(c) + ' column.';
+        } else {
+          t = 'Add the digits in the ' + colName(c) + ' column' + (col.cin ? ', including the 1 carried from the ' + colName(c - 1) + ' column' : '') + '.';
+        }
+      } else if (st.phase === 'write') {
+        w = 'Write <b>' + col.digit + '</b>' + (col.cout ? ' &nbsp;carry <b class="cy">1</b>' : '');
+        if (bin) {
+          r = ruleOf(col); rule = r;
+          if (r === 1) t = 'Rule 1: 0 + 0 = 0. Write 0. Nothing to carry.';
+          else if (r === 2) t = 'Rule 2: a single 1 gives 1. Write 1. Nothing to carry.';
+          else if (r === 3) t = 'Rule 3: 1 + 1 = 0 carry 1. Write 0 and carry 1 into the ' + colName(c + 1) + ' column, because two ' + unitName(c) + ' make one ' + val(c + 1) + '.';
+          else t = 'Rule 4: 1 + 1 + 1 (carried) = 1 carry 1. Write 1 and carry 1 into the ' + colName(c + 1) + ' column.';
+        } else if (col.extra) {
+          t = 'Write the carried 1. There is nothing more to add, so we have finished.';
+        } else if (col.cout) {
+          t = col.sum + ' is more than 9, so write the ' + col.digit + ' and carry the 1 into the ' + colName(c + 1) + ' column, because ten ' + unitName(c) + ' make one ' + val(c + 1) + '.';
+        } else {
+          t = col.sum + ' is 9 or less, so it fits in one column. Write ' + col.digit + '. Nothing to carry.';
+        }
+      } else {
+        t = endText();
+      }
+      S.ruleLit = rule;
+      return { w: w, t: t };
+    }
+    return { w: st.phase === 'end' ? '' : S.tryWork, t: S.tryMsg };
+  }
+
+  function trayHTML() {
+    var mx = S.model.base - 1, h = '<div class="trayrow"><span class="tlbl">Write</span>', d;
+    for (d = 0; d <= mx; d++) h += '<div class="tile small' + (S.selDigit === d ? ' sel' : '') + '" data-w="' + d + '" role="button" tabindex="0" aria-label="Write ' + d + '">' + d + '</div>';
+    h += '</div><div class="trayrow"><span class="tlbl">Carry</span>';
+    for (d = 0; d <= 1; d++) h += '<div class="tile small' + (S.selCarry === d ? ' sel' : '') + '" data-c="' + d + '" role="button" tabindex="0" aria-label="Carry ' + d + '">' + d + '</div>';
+    h += '</div><div class="trayrow"><button class="btn' + (S.selDigit !== null && S.selCarry !== null ? ' primary' : '') + '" id="btnCheck">Check column</button></div>';
+    return h;
+  }
+
+  function render() {
+    var st = state(), d = describe(st), watch = S.mode[S.tab] === 'watch', last = 2 * S.model.n + 1;
+    var ae = document.activeElement, fsel = null;
+    if (ae && ae.getAttribute) {
+      if (ae.getAttribute('data-w') !== null) fsel = '[data-w="' + ae.getAttribute('data-w') + '"]';
+      else if (ae.getAttribute('data-c') !== null) fsel = '[data-c="' + ae.getAttribute('data-c') + '"]';
+    }
+    $('#gridHost').innerHTML = gridHTML(st);
+    $('#work').innerHTML = d.w;
+    $('#msg').textContent = d.t;
+    var chips = document.querySelectorAll('.rc');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('on', +chips[i].getAttribute('data-r') === S.ruleLit);
+    $('#ruleStrip').classList.toggle('hide', S.tab !== 'bin');
+    $('#watchCtl').classList.toggle('hide', !watch);
+    $('#tryCtl').classList.toggle('hide', watch);
+    var tray = $('#tryTray');
+    tray.classList.toggle('hide', watch || st.phase === 'end');
+    if (!watch && st.phase !== 'end') {
+      tray.innerHTML = trayHTML();
+      var fe = fsel && document.querySelector(fsel);
+      if (fe && fe.focus) fe.focus({ preventScroll: true });
+    }
+    $('#btnBack').disabled = S.step === 0;
+    $('#btnNext').disabled = S.step >= last;
+    $('#btnAuto').textContent = S.auto ? 'Pause' : 'Auto-play';
+    $('#btnHint').disabled = st.phase === 'end';
+    $('#btnNew').classList.toggle('glow', st.phase === 'end');
+    var seg = document.querySelectorAll('#modeSeg button');
+    for (var j = 0; j < seg.length; j++) seg[j].setAttribute('aria-pressed', seg[j].getAttribute('data-mode') === S.mode[S.tab]);
+    $('#score').textContent = 'Solved: ' + S.score[S.tab];
+  }
+
+  /* ---------- writing a column (animated) ---------- */
+  function writeColumn(c, fromDigit, fromCarry, after) {
+    var col = S.model.cols[c], ep = S.epoch;
+    S.pending['r' + c] = true;
+    if (col.cout > 0) S.pending['k' + (c + 1)] = true;
+    render();
+    var to = rectOf('[data-key="r' + c + '"]');
+    fly(String(col.digit), fromDigit || to, to, function () {
+      if (ep !== S.epoch) return;
+      delete S.pending['r' + c]; render(); pop('r' + c);
+      if (col.cout > 0) {
+        setTimeout(function () {
+          if (ep !== S.epoch) return;
+          var k = rectOf('[data-key="k' + (c + 1) + '"]');
+          fly('1', fromCarry || rectOf('[data-key="r' + c + '"]'), k, function () {
+            if (ep !== S.epoch) return;
+            delete S.pending['k' + (c + 1)]; render(); pop('k' + (c + 1));
+            if (after) after();
+          }, k ? Math.min(k.width, k.height) : null);
+        }, reduce ? 0 : 150);
+      } else if (after) after();
+    });
+  }
+
+  /* ---------- watch mode ---------- */
+  function nav(dir) {
+    var last = 2 * S.model.n + 1, ns = S.step + dir;
+    if (S.mode[S.tab] !== 'watch' || ns < 0 || ns > last) return;
+    S.epoch++; S.pending = {}; clearFlyers(); S.busy = false;
+    S.step = ns;
+    var st = state();
+    if (dir > 0 && st.phase === 'write') writeColumn(st.active, rectOf('#work'), null, null);
+    else render();
+    if (dir > 0 && st.phase === 'end') confetti();
+  }
+  function stopAuto() { if (S.auto) { clearInterval(S.auto); S.auto = null; } }
+  function toggleAuto() {
+    if (S.auto) { stopAuto(); render(); return; }
+    if (S.step >= 2 * S.model.n + 1) { S.step = 0; S.epoch++; S.pending = {}; clearFlyers(); render(); }
+    S.auto = setInterval(function () {
+      if (S.step >= 2 * S.model.n + 1) { stopAuto(); render(); return; }
+      nav(1);
+    }, 2600);
+    nav(1);
+  }
+
+  /* ---------- try mode ---------- */
+  function checkColumn() {
+    var st = state();
+    if (S.mode[S.tab] !== 'try' || st.phase !== 'try' || S.busy) return;
+    var m = S.model, bin = m.base === 2;
+    if (S.selDigit === null || S.selCarry === null) {
+      S.tryMsg = 'Choose a digit to write and an amount to carry (choose 0 if there is nothing to carry).';
+      render(); return;
+    }
+    var c = st.active, col = m.cols[c];
+    var dOK = S.selDigit === col.digit, cOK = S.selCarry === col.cout;
+    if (dOK && cOK) {
+      var fd = rectOf('[data-w="' + S.selDigit + '"]'), fc = col.cout > 0 ? rectOf('[data-c="1"]') : null;
+      var rl = bin ? ruleOf(col) : 0;
+      S.selDigit = null; S.selCarry = null; S.tries = 0; S.hint = 0; S.tryWork = '';
+      S.done++; S.busy = true; S.ruleLit = rl;
+      var ep = S.epoch;
+      S.tryMsg = 'Correct!';
+      writeColumn(c, fd, fc, function () {
+        if (ep !== S.epoch) return;
+        S.busy = false;
+        if (S.done >= m.n) {
+          S.tryMsg = '🎉 Well done! ' + endText();
+          if (!S.scored) { S.scored = true; S.score[S.tab]++; }
+          S.ruleLit = 0; render(); confetti();
+        } else {
+          S.tryMsg = '✔ Correct' + (bin ? ' (Rule ' + rl + ')' : '') + '. Now the ' + colName(S.done) + ' column.';
+          render();
+        }
+      });
+    } else {
+      S.tries++;
+      if (dOK && !cOK) S.tryMsg = 'The digit is right, but check whether you need to carry.';
+      else if (!dOK && cOK) S.tryMsg = 'The carry is right, but not the digit you are writing. Have another look at the column.';
+      else S.tryMsg = bin ? 'Not quite. Count the 1s in the column again (including any carried 1), then use the rules.'
+                          : 'Not quite. Add the column again: the total gives both the digit to write and the amount to carry.';
+      if (S.tries >= 2 && S.hint === 0) S.tryMsg += ' Try the Hint button.';
+      render();
+      var btn = $('#btnCheck'); if (btn) { btn.classList.add('shake'); }
+    }
+  }
+  function hintTry() {
+    var st = state();
+    if (S.mode[S.tab] !== 'try' || st.phase !== 'try') return;
+    var m = S.model, bin = m.base === 2, col = m.cols[st.active], ones = col.a + col.b + col.cin;
+    S.hint = Math.min(2, S.hint + 1);
+    if (S.hint === 1) {
+      S.tryWork = fmtSum(col) + ' = ?';
+      S.tryMsg = bin ? 'Count the 1s in this column, including any carried 1.'
+                     : 'Add up the digits in this column' + (col.cin ? ', including the carried 1' : '') + '.';
+    } else {
+      S.tryWork = fmtSum(col) + ' = <b>' + ansHTML(col) + '</b>';
+      if (bin) {
+        S.ruleLit = ruleOf(col);
+        S.tryMsg = 'That makes ' + WORDS[ones] + ' 1' + (ones === 1 ? '' : 's') + ', so it is Rule ' + ruleOf(col) + ': write ' + col.digit + (col.cout ? ' and carry 1.' : ', nothing to carry.');
+      } else {
+        S.tryMsg = 'The total is ' + col.sum + ', so write ' + col.digit + (col.cout ? ' and carry the 1.' : '. Nothing to carry.');
+      }
+    }
+    render();
+  }
+
+  /* ---------- rules tab ---------- */
+  var CARDS = [
+    ['Rule 1', '0 + 0 = 0', 'No 1s: write 0. Nothing to carry.'],
+    ['Rule 2', '1 + 0 = 1  and  0 + 1 = 1', 'One 1: write 1. Nothing to carry.'],
+    ['Rule 3', '1 + 1 = 0 carry 1', 'Two 1s: write 0 and carry 1.'],
+    ['Rule 4', '1 + 1 + 1 (carried) = 1 carry 1', 'Three 1s: write 1 and carry 1.']
+  ];
+  function exCalc() { var e = S.ex, ones = e.a + e.b + e.c; return { ones: ones, digit: ones % 2, cout: ones >> 1, rule: ones + 1 }; }
+  function tg(k, v, label) {
+    return '<div class="cell tg' + (v ? ' one' : '') + '" data-ex="' + k + '" role="button" tabindex="0" aria-label="' + label + ': ' + v + '. Click to change">' + v + '</div>';
+  }
+  function renderRules() {
+    var e = S.ex, r = exCalc(), h = '', i;
+    for (i = 0; i < 4; i++) {
+      h += '<div class="rcard' + (r.rule === i + 1 ? ' on' : '') + '" data-rule="' + (i + 1) + '" role="button" tabindex="0">' +
+        '<div class="rt">' + CARDS[i][0] + '</div><div class="re">' + CARDS[i][1] + '</div><div class="rs">' + CARDS[i][2] + '</div></div>';
+    }
+    $('#ruleCards').innerHTML = h;
+    var g = '<div class="grid" style="--n:2">';
+    g += '<div></div><div class="cell hd" style="--h:290"><span>Next column</span></div><div class="cell hd hact" style="--h:205"><span>This column</span></div>';
+    g += '<div class="op lab">Carry</div><div class="cell carry big' + (r.cout ? ' on' : '') + (S.exPend ? ' pend' : '') + '" data-key="xk">' + (r.cout ? '1' : '') + '</div>' + tg('c', e.c, 'Carried in');
+    g += '<div class="op lab">Top digit</div><div class="cell ghost">…</div>' + tg('a', e.a, 'Top digit');
+    g += '<div class="op lab">+ Bottom digit</div><div class="cell ghost">…</div>' + tg('b', e.b, 'Bottom digit');
+    g += '<div class="rline"></div>';
+    g += '<div class="op lab">Answer</div><div class="cell ghost">…</div><div class="cell res" data-key="xr">' + r.digit + '</div></div>';
+    $('#exHost').innerHTML = g;
+    var eq = e.a + ' + ' + e.b + (e.c ? ' + <span class="cy">1</span>' : '') + ' = <b>' + r.ones.toString(2) + '<sub>2</sub></b>';
+    $('#exEq').innerHTML = eq;
+    var t;
+    if (r.ones === 0) t = 'Rule 1: no 1s in the column, so 0 + 0 = 0. Write 0. Nothing to carry.';
+    else if (r.ones === 1) t = 'Rule 2: just one 1 in the column' + (e.c ? ' (the carried one)' : '') + ', so the answer is 1. Write 1. Nothing to carry.';
+    else if (r.ones === 2) t = 'Rule 3: two 1s' + (e.c ? ' (one of them is the carried 1)' : '') + ': 1 + 1 = 0 carry 1. Write 0 and carry 1 into the next column.';
+    else t = 'Rule 4: three 1s (two digits and the carried 1): 1 + 1 + 1 = 1 carry 1. Write 1 and carry 1 into the next column.';
+    $('#exText').textContent = t;
+  }
+  function exAnimate() {
+    S.exEp++; var ep = S.exEp; clearFlyers();
+    var r = exCalc(); S.exPend = r.cout > 0;
+    renderRules(); pop('xr');
+    if (r.cout > 0) {
+      setTimeout(function () {
+        if (ep !== S.exEp) return;
+        var k = rectOf('[data-key="xk"]');
+        fly('1', rectOf('[data-key="xr"]'), k, function () {
+          if (ep !== S.exEp) return;
+          S.exPend = false; renderRules(); pop('xk');
+        }, k ? Math.min(k.width, k.height) * 0.8 : null);
+      }, reduce ? 0 : 200);
+    }
+  }
+  function pickRule(n) {
+    var e = S.ex;
+    if (n === 1) S.ex = { a: 0, b: 0, c: 0 };
+    else if (n === 2) S.ex = (e.a === 1 && e.b === 0 && e.c === 0) ? { a: 0, b: 1, c: 0 } : { a: 1, b: 0, c: 0 };
+    else if (n === 3) S.ex = { a: 1, b: 1, c: 0 };
+    else S.ex = { a: 1, b: 1, c: 1 };
+    exAnimate();
+  }
+
+  /* ---------- tabs and controls ---------- */
+  var BLURBS = {
+    den: 'The column method: line the numbers up by place value, start on the right, add each column, and carry whenever a column total is 10 or more.',
+    rules: 'In binary a column can only hold 0 or 1, so as soon as a column adds up to 2 or more we must carry. There are just four rules to learn.',
+    bin: 'Now use the four rules to add two binary numbers, exactly as you did in denary. Count the 1s in each column (including any carried 1) to choose the rule.'
+  };
+  function setTab(t) {
+    stopAuto(); S.epoch++; clearFlyers(); S.exEp++;
+    S.tab = t;
+    $('#tabDen').setAttribute('aria-selected', t === 'den');
+    $('#tabRules').setAttribute('aria-selected', t === 'rules');
+    $('#tabBin').setAttribute('aria-selected', t === 'bin');
+    $('#blurb').textContent = BLURBS[t];
+    var add = t !== 'rules';
+    $('#addCtl').classList.toggle('hide', !add);
+    $('#addStage').classList.toggle('hide', !add);
+    $('#rulesStage').classList.toggle('hide', add);
+    $('#denSize').classList.toggle('hide', t !== 'den');
+    $('#binSize').classList.toggle('hide', t !== 'bin');
+    if (add) newProblem(); else { S.exPend = false; renderRules(); }
+  }
+
+  $('#tabDen').addEventListener('click', function () { if (S.tab !== 'den') setTab('den'); });
+  $('#tabRules').addEventListener('click', function () { if (S.tab !== 'rules') setTab('rules'); });
+  $('#tabBin').addEventListener('click', function () { if (S.tab !== 'bin') setTab('bin'); });
+  $('#digSel').addEventListener('change', function (e) { S.digits = +e.target.value; S.prev = ''; newProblem(); });
+  $('#bitSel').addEventListener('change', function (e) { S.bits = +e.target.value; S.prev = ''; newProblem(); });
+  $('#btnNew').addEventListener('click', newProblem);
+  $('#btnBack').addEventListener('click', function () { stopAuto(); nav(-1); });
+  $('#btnNext').addEventListener('click', function () { stopAuto(); nav(1); });
+  $('#btnAuto').addEventListener('click', toggleAuto);
+  $('#btnRestart').addEventListener('click', function () { resetProgress(); render(); });
+  $('#btnHint').addEventListener('click', hintTry);
+  $('#modeSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var m = b.getAttribute('data-mode');
+    if (S.mode[S.tab] === m) return;
+    S.mode[S.tab] = m; newProblem();
+  });
+
+  document.addEventListener('click', function (e) {
+    var w = e.target.closest('[data-w]');
+    if (w) { S.selDigit = +w.getAttribute('data-w'); render(); return; }
+    var c = e.target.closest('[data-c]');
+    if (c) { S.selCarry = +c.getAttribute('data-c'); render(); return; }
+    if (e.target.closest('#btnCheck')) { checkColumn(); return; }
+    var x = e.target.closest('[data-ex]');
+    if (x) { var k = x.getAttribute('data-ex'); S.ex[k] = S.ex[k] ? 0 : 1; exAnimate(); return; }
+    var r = e.target.closest('[data-rule]');
+    if (r) pickRule(+r.getAttribute('data-rule'));
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-w],[data-c],[data-ex],[data-rule]')) {
+      e.preventDefault(); e.target.click();
+    }
+  });
+
+  setTab('den');
+})();
+</script>
+</body>
+</html>

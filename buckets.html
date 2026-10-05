@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buckets of Value: Denary and Binary</title>
+<style>
+:root{--bg:#f2f6fc;--ink:#18223f;--muted:#55628a;--card:#ffffff;--line:#d3dcf0;--red:#d7263d;--green:#16874a;--accent:#2f5bea}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.35}
+.wrap{max-width:1000px;margin:0 auto;padding:14px clamp(10px,3vw,24px) 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+h1{font-size:clamp(22px,4vw,32px);margin:0}
+.tabs{display:flex;gap:6px}
+.tabs button{font:inherit;font-weight:700;padding:9px 16px;border-radius:999px;border:2px solid var(--accent);background:#fff;color:var(--accent);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#fff}
+.blurb{color:var(--muted);margin:8px 0 0;font-size:clamp(14px,2vw,17px)}
+.controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:12px 0}
+.controls label{font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px}
+.controls select{font:inherit;padding:5px 8px;border-radius:8px;border:1px solid var(--line)}
+.btn{font:inherit;font-weight:700;padding:9px 16px;border-radius:10px;border:2px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.glow{background:var(--green);border-color:var(--green);color:#fff;animation:glow 1s ease-in-out infinite alternate}
+@keyframes glow{from{box-shadow:0 0 0 0 rgba(22,135,74,.5)}to{box-shadow:0 0 0 10px rgba(22,135,74,0)}}
+.score{margin-left:auto;font-weight:700;color:var(--muted)}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 16px}
+.targetcard{text-align:center}
+#prompt{color:var(--muted);font-weight:600}
+.targetnum{font-weight:900;font-size:clamp(48px,12vw,108px);line-height:1.05;letter-spacing:.02em}
+.appear{animation:drop .6s cubic-bezier(.3,1.4,.5,1)}
+@keyframes drop{0%{transform:translateY(-70px) scale(.5);opacity:0}70%{opacity:1}100%{transform:none}}
+.traycard{margin-top:12px;text-align:center}
+#trayLabel{color:var(--muted);font-size:15px;margin-bottom:8px}
+.trayrow{display:flex;gap:clamp(8px,2vw,18px);justify-content:center;min-height:60px;flex-wrap:wrap}
+.tile{width:clamp(54px,10vw,84px);aspect-ratio:1;border-radius:18px;background:linear-gradient(#ffd75e,#f5a800);color:#18223f;font-weight:900;font-size:clamp(28px,5vw,46px);display:flex;align-items:center;justify-content:center;box-shadow:0 5px 0 #b97a00;cursor:grab;user-select:none;-webkit-user-select:none;transition:transform .12s}
+.tile:hover{transform:translateY(-2px)}
+.tile.sel{outline:4px solid var(--accent);transform:translateY(-6px)}
+.tile.small{width:clamp(40px,7.5vw,62px);font-size:clamp(22px,4vw,34px);border-radius:14px;box-shadow:0 4px 0 #b97a00}
+.tile.hint{outline:4px dashed #f08a00}
+.tile.away{opacity:.16;box-shadow:none;cursor:default;pointer-events:none}
+.tile.supply{cursor:grab}
+.flyer{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;margin:0;box-shadow:0 8px 14px rgba(0,0,0,.25);transition:none}
+.buckets{display:flex;justify-content:center;gap:clamp(4px,1.4vw,16px);margin:16px 0 8px}
+.bucket{flex:1 1 0;min-width:0;max-width:170px;display:flex;flex-direction:column;align-items:center;container-type:inline-size;cursor:pointer;border-radius:14px;padding:4px 2px}
+.bucket:focus-visible,.tile:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.blabel{font-weight:800;font-size:clamp(12px,2.2vw,22px);font-size:clamp(12px,17cqw,24px)}
+.bsub{color:var(--muted);font-size:clamp(10px,1.4vw,15px);font-size:clamp(10px,12cqw,15px)}
+.vessel{position:relative;width:100%;aspect-ratio:1/1.05;margin-top:4px;transition:transform .15s,filter .15s}
+.bucket:hover .vessel{transform:translateY(-3px)}
+.body{position:absolute;left:3%;right:3%;top:13%;bottom:0;background:var(--c);clip-path:polygon(0 0,100% 0,88% 100%,12% 100%)}
+.body::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.3),rgba(255,255,255,0) 42%,rgba(0,0,0,.22))}
+.rim{position:absolute;left:0;right:0;top:5%;height:17%;border-radius:50%;background:#111a33;border:3px solid var(--c)}
+.dig{position:absolute;left:0;right:0;top:33%;text-align:center;font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.4);font-size:clamp(22px,5vw,60px);font-size:44cqw;line-height:1}
+.dig.zero{opacity:.5}
+.bval{font-weight:800;font-size:clamp(12px,1.8vw,22px);font-size:clamp(12px,15cqw,22px);min-height:1.4em;text-align:center;margin-top:4px}
+.bucket.picked .vessel{filter:drop-shadow(0 0 12px var(--green))}
+.bucket.picked .blabel,.bucket.picked .bval{color:var(--green)}
+.ansrow{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap}
+.ansbox{font:inherit;font-weight:900;font-size:clamp(26px,5vw,40px);width:5.5ch;text-align:center;padding:6px 10px;border-radius:14px;border:3px solid var(--accent);color:var(--ink);background:#fff}
+.ansbox:disabled{border-color:var(--green);color:var(--green);background:#e2f6eb}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.bucket.over .vessel{filter:drop-shadow(0 0 12px var(--accent))}
+.bucket.hint .vessel{animation:pulse .8s ease-in-out infinite alternate}
+@keyframes pulse{from{filter:drop-shadow(0 0 2px #f5a800)}to{filter:drop-shadow(0 0 16px #f5a800)}}
+.bucket.plop .vessel{animation:plop .5s}
+.bucket.plop .dig{animation:popin .4s}
+@keyframes plop{0%{transform:scale(1)}30%{transform:scale(1.09,.9)}60%{transform:scale(.96,1.05)}100%{transform:scale(1)}}
+@keyframes popin{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+.binline{text-align:center;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;font-size:clamp(18px,4vw,32px);min-height:1.4em;letter-spacing:.08em;margin-bottom:6px}
+.binline small{font-family:inherit;font-weight:600;font-size:.55em;letter-spacing:0;color:var(--muted);margin-right:8px}
+.total{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center;border-width:3px;transition:background .2s,border-color .2s,color .2s}
+.total.red{background:#fdeaec;border-color:var(--red);color:var(--red)}
+.total.green{background:#e2f6eb;border-color:var(--green);color:var(--green)}
+.tl{font-weight:700;font-size:clamp(13px,2vw,17px)}
+.tn{font-weight:900;font-size:clamp(40px,9vw,80px);line-height:1}
+.tn.bump{animation:popin .3s}
+.tt{font-weight:700;font-size:clamp(13px,2vw,17px);color:var(--ink)}
+.td{font-weight:700;font-size:clamp(13px,2vw,17px)}
+.sum{text-align:center;color:var(--muted);font-weight:700;margin:8px 0 0;min-height:1.4em;font-size:clamp(14px,2.4vw,20px)}
+.msg{text-align:center;font-weight:600;font-size:clamp(15px,2.4vw,20px);margin-top:10px;min-height:2.8em}
+.conf{position:fixed;width:9px;height:14px;z-index:999;pointer-events:none}
+.hide{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Buckets of Value</h1>
+    <nav class="tabs" role="tablist" aria-label="Choose activity">
+      <button role="tab" id="tabDen" aria-selected="true">1 · Denary</button>
+      <button role="tab" id="tabBin" aria-selected="false">2 · Denary to binary</button>
+      <button role="tab" id="tabB2D" aria-selected="false">3 · Binary to denary</button>
+    </nav>
+  </header>
+  <p id="blurb" class="blurb"></p>
+
+  <div class="controls">
+    <label id="colsWrap">Buckets
+      <select id="colsSel"><option value="2">2 (up to 99)</option><option value="3" selected>3 (up to 999)</option><option value="4">4 (up to 9999)</option></select>
+    </label>
+    <label id="bitsWrap" class="hide">Bits
+      <select id="bitsSel"><option value="4">4 (up to 15)</option><option value="8" selected>8 (up to 255)</option></select>
+    </label>
+    <label><input type="checkbox" id="showVals" checked> Show bucket values</label>
+    <button class="btn" id="btnNew">New number</button>
+    <button class="btn" id="btnHint">Hint</button>
+    <button class="btn" id="btnReset">Empty buckets</button>
+    <span class="score" id="score">Solved: 0</span>
+  </div>
+
+  <main id="stage">
+    <section class="card targetcard">
+      <div id="prompt"></div>
+      <div id="targetNum" class="targetnum">0</div>
+    </section>
+
+    <section class="card traycard">
+      <div id="trayLabel"></div>
+      <div id="tray" class="trayrow"></div>
+    </section>
+
+    <section id="buckets" class="buckets" aria-label="Buckets"></section>
+    <div id="binLine" class="binline"></div>
+
+    <section id="total" class="card total red">
+      <div><div class="tl" id="tlLabel">Total in the buckets</div><div class="td" id="diff"></div></div>
+      <div class="tn" id="totNum">0</div>
+      <div class="tt"><span id="ttLabel">Target</span><br><b id="tgt2" style="font-size:1.6em">0</b></div>
+    </section>
+    <div class="sum" id="sum"></div>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </main>
+  <noscript>This activity needs JavaScript switched on.</noscript>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  function sup(n) { return String(n).split('').map(function (c) { return SUP[+c]; }).join(''); }
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ORD = ['first', 'second', 'third', 'fourth'];
+
+  var S = {
+    mode: 'denary', cols: 3, nbits: 8,
+    target: 0, prev: null,
+    tiles: [], slots: [], bitArr: [],
+    selected: null, solved: false, scored: false, score: 0,
+    hint: 0, hintBucket: null, hintTile: null, hintAll: false,
+    picked: [], guess: '', lastGuess: null, b2dMsg: '', b2dTries: 0,
+    showVals: true, incoming: {}, epoch: 0
+  };
+
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function count() { return S.mode === 'denary' ? S.cols : S.nbits; }
+  function places() {
+    var n = count(), base = S.mode === 'denary' ? 10 : 2, out = [];
+    for (var i = 0; i < n; i++) out.push(Math.pow(base, n - 1 - i));
+    return out;
+  }
+  function power(i) { return count() - 1 - i; }
+  function bucketLabel(i) {
+    var p = places()[i];
+    if (S.mode !== 'denary') return String(p);
+    return p === 1 ? 'Units' : p + 's';
+  }
+  function digitAt(i) {
+    if (S.mode === 'denary') return S.slots[i] === null ? 0 : S.slots[i];
+    return S.bitArr[i];
+  }
+  function contribution(i) { return digitAt(i) * places()[i]; }
+  function total() {
+    var t = 0, n = count();
+    for (var i = 0; i < n; i++) t += contribution(i);
+    return t;
+  }
+  function requiredDigits() { return String(S.target).padStart(S.cols, '0').split('').map(Number); }
+  function clearHints() { S.hint = 0; S.hintBucket = null; S.hintTile = null; S.hintAll = false; }
+  function popcount(v) { return v.toString(2).replace(/0/g, '').length; }
+  function grp(s) {
+    var out = [], i = s.length;
+    while (i > 0) { out.unshift(s.slice(Math.max(0, i - 4), i)); i -= 4; }
+    return out.join(' ');
+  }
+  function tfmt(v) { return S.mode === 'b2d' ? grp(v.toString(2).padStart(S.nbits, '0')) : String(v); }
+
+  /* ---------- new puzzle ---------- */
+  function generate() {
+    var g = 0, val, digits;
+    do {
+      if (S.mode === 'denary') {
+        var len = (S.cols > 2 && Math.random() < 0.3) ? S.cols - 1 : S.cols;
+        digits = [];
+        for (var i = 0; i < len; i++) digits.push(i === 0 ? rnd(1, 9) : (Math.random() < 0.25 ? 0 : rnd(0, 9)));
+        val = Number(digits.join(''));
+      } else {
+        val = rnd(1, Math.pow(2, S.nbits) - 1);
+      }
+      g++;
+    } while ((val === S.prev || (S.mode === 'b2d' && popcount(val) < 2)) && g < 60);
+    S.prev = val; S.target = val;
+    S.solved = false; S.scored = false; S.selected = null; S.incoming = {};
+    S.picked = []; S.guess = ''; S.lastGuess = null; S.b2dMsg = ''; S.b2dTries = 0;
+    S.epoch++;
+    clearHints();
+    if (S.mode === 'denary') {
+      S.slots = []; for (var k = 0; k < S.cols; k++) S.slots.push(null);
+    } else if (S.mode === 'b2d') {
+      S.bitArr = val.toString(2).padStart(S.nbits, '0').split('').map(Number);
+    } else {
+      S.bitArr = []; for (var b = 0; b < S.nbits; b++) S.bitArr.push(0);
+    }
+    showTarget();
+    render();
+    evaluate(true);
+  }
+
+  function resetBuckets() {
+    S.epoch++; S.incoming = {}; S.selected = null; S.solved = false; clearHints();
+    S.picked = []; S.guess = ''; S.lastGuess = null; S.b2dMsg = '';
+    if (S.mode === 'b2d') {
+      /* the binary number stays; only the working is cleared */
+    } else if (S.mode === 'denary') {
+      S.slots = S.slots.map(function () { return null; });
+    } else {
+      S.bitArr = S.bitArr.map(function () { return 0; });
+    }
+    render();
+    evaluate(true);
+  }
+
+  var rollTimer = null;
+  function showTarget() {
+    var el = $('#targetNum');
+    clearInterval(rollTimer);
+    el.classList.remove('appear'); void el.offsetWidth; el.classList.add('appear');
+    var final = S.target, max = S.mode === 'denary' ? Math.pow(10, S.cols) - 1 : Math.pow(2, S.nbits) - 1;
+    if (S.mode !== 'b2d') $('#tgt2').textContent = final;
+    if (reduce) { el.textContent = tfmt(final); return; }
+    var n = 0;
+    rollTimer = setInterval(function () {
+      n++;
+      if (n >= 9) { clearInterval(rollTimer); el.textContent = tfmt(final); }
+      else el.textContent = tfmt(rnd(1, max));
+    }, 50);
+  }
+
+  /* ---------- rendering ---------- */
+  function render() {
+    var ae = document.activeElement;
+    var fk = ae && ae.getAttribute ? ae.getAttribute('data-key') : null;
+    var pl = places(), n = pl.length, h = '';
+    for (var i = 0; i < n; i++) {
+      var dig = digitAt(i), empty = dig === 0 && (S.mode !== 'denary' || S.slots[i] === null);
+      var isPicked = S.mode === 'b2d' && S.picked.indexOf(i) >= 0;
+      var contrib = dig * pl[i];
+      var hue = (i * (S.mode !== 'denary' ? 37 : 70) + 205) % 360;
+      h += '<div class="bucket' + (S.hintBucket === i || (S.hintAll && S.mode === 'b2d' && S.bitArr[i] === 1) ? ' hint' : '') + (isPicked ? ' picked' : '') + '" data-bucket="' + i + '" data-key="b' + i +
+        '" role="button" tabindex="0" aria-label="' + bucketLabel(i) + ' bucket, currently holding ' + dig +
+        '" style="--c:hsl(' + hue + ',62%,46%)">' +
+        '<div class="blabel">' + bucketLabel(i) + '</div>' +
+        '<div class="bsub">' + (S.mode !== 'denary' ? '2' : '10') + sup(power(i)) + '</div>' +
+        '<div class="vessel"><div class="body"></div><div class="rim"></div><div class="dig' + (empty ? ' zero' : '') + '">' + dig + '</div></div>' +
+        '<div class="bval">' + (isPicked ? '✔ ' : '') + (S.showVals ? '= ' + contrib : (isPicked ? '' : '&nbsp;')) + '</div></div>';
+    }
+    $('#buckets').innerHTML = h;
+
+    var t = '';
+    if (S.mode === 'denary') {
+      for (var d = 0; d < 10; d++) {
+        t += '<div class="tile small' + (S.selected === d ? ' sel' : '') + (S.hintTile === d ? ' hint' : '') +
+          '" data-digit="' + d + '" data-key="d' + d + '" role="button" tabindex="0" draggable="true" aria-label="Digit ' + d + '">' + d + '</div>';
+      }
+    } else if (S.mode === 'b2d') {
+      t = '<div class="ansrow"><input id="ans" data-key="ans" class="ansbox" type="text" inputmode="numeric" autocomplete="off" placeholder="?" aria-label="Your answer in denary" value="' + String(S.guess).replace(/[^0-9]/g, '') + '"' + (S.solved ? ' disabled' : '') + '>' +
+        '<button class="btn primary" id="btnCheck"' + (S.solved ? ' disabled' : '') + '>Check</button></div>';
+    } else {
+      t = '<div class="tile supply" data-supply data-key="supply" draggable="true" aria-label="A one to throw">1</div>';
+    }
+    $('#tray').innerHTML = t;
+
+    if (S.mode === 'binary') {
+      var s = S.bitArr.join('');
+      $('#binLine').innerHTML = '<small>Your binary number</small>' + s.match(/.{1,4}/g).join(' ');
+    } else {
+      $('#binLine').innerHTML = '';
+    }
+
+    if (fk) {
+      var el = document.querySelector('[data-key="' + fk + '"]');
+      if (el && el.focus) el.focus({ preventScroll: true });
+    }
+  }
+
+  function sumString() {
+    var parts = [], n = count();
+    for (var i = 0; i < n; i++) { var c = contribution(i); if (c > 0) parts.push(c); }
+    return parts.length ? parts.join(' + ') : '0';
+  }
+  function binString() { return S.bitArr.join('').match(/.{1,4}/g).join(' '); }
+  function setMsg(m) { $('#msg').textContent = m; }
+
+  function evaluateB2D() {
+    var pl = places(), ones = [], i, shown, tn = $('#totNum'), tot = $('#total');
+    for (i = 0; i < pl.length; i++) if (S.bitArr[i] === 1) ones.push(pl[i]);
+    shown = S.solved ? S.target : (S.lastGuess === null ? '?' : S.lastGuess);
+    if (tn.textContent !== String(shown)) { tn.textContent = shown; tn.classList.remove('bump'); void tn.offsetWidth; tn.classList.add('bump'); }
+    tot.classList.toggle('red', !S.solved);
+    tot.classList.toggle('green', S.solved);
+    $('#tlLabel').textContent = 'Your answer';
+    $('#ttLabel').textContent = 'Buckets holding a 1';
+    $('#tgt2').textContent = ones.length;
+    $('#diff').textContent = S.solved ? '✔ Correct' : (S.lastGuess === null ? 'Not answered yet' : (S.lastGuess > S.target ? 'Too high' : 'Too low'));
+    var parts = S.solved ? ones : S.picked.slice().sort(function (a, b) { return a - b; }).map(function (k) { return pl[k]; });
+    $('#sum').textContent = 'Working: ' + (parts.length ? parts.join(' + ') + ' = ' + (S.solved ? S.target : '?') : 'click the buckets that hold a 1');
+    $('#score').textContent = 'Solved: ' + S.score;
+    $('#btnNew').classList.toggle('glow', S.solved);
+    var m;
+    if (S.solved) m = 'Correct! ' + ones.join(' + ') + ' = ' + S.target + ', so ' + tfmt(S.target) + ' in binary is ' + S.target + ' in denary. Press "New number" to go again.';
+    else if (S.b2dMsg) m = S.b2dMsg;
+    else if (S.picked.length === 0) m = 'Look at the buckets. Click each bucket holding a 1 to throw its value into your working, then type the total.';
+    else if (S.picked.length < ones.length) m = 'Keep going: ' + (ones.length - S.picked.length) + ' more bucket' + (ones.length - S.picked.length === 1 ? '' : 's') + ' holding a 1 still to add.';
+    else m = 'You have collected every bucket holding a 1. Now add the values up and type the total.';
+    setMsg(m);
+  }
+
+  function evaluate(quiet) {
+    if (S.mode === 'b2d') { evaluateB2D(); return; }
+    var t = total();
+    var busy = Object.keys(S.incoming).length > 0;
+    var ok = t === S.target && !busy;
+    var newly = false;
+    if (ok) {
+      if (!S.solved) { S.solved = true; newly = true; if (!S.scored) { S.scored = true; S.score++; } }
+    } else S.solved = false;
+
+    var tot = $('#total'), tn = $('#totNum');
+    if (tn.textContent !== String(t)) { tn.textContent = t; tn.classList.remove('bump'); void tn.offsetWidth; tn.classList.add('bump'); }
+    tot.classList.toggle('red', !ok);
+    tot.classList.toggle('green', ok);
+    $('#diff').textContent = ok ? '✔ Matches the target' : (t > S.target ? (t - S.target) + ' too high' : (S.target - t) + ' still needed');
+    $('#sum').textContent = 'Working: ' + sumString() + ' = ' + t;
+    $('#score').textContent = 'Solved: ' + S.score;
+    $('#btnNew').classList.toggle('glow', S.solved);
+
+    var anything = S.mode === 'denary' ? S.slots.some(function (x) { return x !== null; }) : S.bitArr.some(function (b) { return b === 1; });
+    var m;
+    if (ok) {
+      m = S.mode === 'denary'
+        ? 'Correct! ' + sumString() + ' = ' + S.target + '. Press "New number" to go again.'
+        : 'Correct! ' + S.target + ' in binary is ' + binString() + '. Press "New number" to go again.';
+    } else if (!anything) {
+      m = S.mode === 'denary'
+        ? 'Pick a digit from 0 to 9, then choose the bucket it belongs in.'
+        : 'Which buckets do you need to make ' + S.target + '? Click a bucket to throw a 1 into it.';
+    } else {
+      m = t > S.target ? 'That is too much. Check the digits you have used.' : 'Keep going: the total is not yet ' + S.target + '.';
+    }
+    setMsg(m);
+    if (newly) confetti();
+  }
+
+  /* ---------- animation ---------- */
+  function rectOf(sel) { var el = document.querySelector(sel); return el ? el.getBoundingClientRect() : null; }
+  function centred(from, size) {
+    return { left: from.left + from.width / 2 - size.width / 2, top: from.top + from.height / 2 - size.height / 2, width: size.width, height: size.height };
+  }
+  function fly(label, from, to, done, size) {
+    var w = size || from.width, h = size || from.height;
+    var el = document.createElement('div');
+    el.className = 'tile flyer'; el.textContent = label;
+    el.style.width = w + 'px'; el.style.height = h + 'px';
+    if (size) { el.style.fontSize = Math.round(size * 0.34) + 'px'; el.style.borderRadius = Math.round(size * 0.25) + 'px'; }
+    document.body.appendChild(el);
+    var x0 = from.left + w / 2, y0 = from.top + h / 2;
+    var x1 = to.left + to.width / 2, y1 = to.top + to.height / 2;
+    var dist = Math.hypot(x1 - x0, y1 - y0);
+    var arc = Math.min(260, 70 + dist * 0.35);
+    var dur = reduce ? 1 : Math.min(900, 420 + dist * 0.6);
+    var spin = (x1 >= x0 ? 1 : -1) * (360 + Math.random() * 180);
+    var t0 = performance.now();
+    function frame(now) {
+      var t = Math.min(1, (now - t0) / dur);
+      var x = x0 + (x1 - x0) * t;
+      var y = y0 + (y1 - y0) * t - arc * 4 * t * (1 - t);
+      el.style.transform = 'translate(' + (x - w / 2) + 'px,' + (y - h / 2) + 'px) rotate(' + (spin * t) + 'deg) scale(' + (1 - 0.3 * t) + ')';
+      if (t < 1) requestAnimationFrame(frame);
+      else { el.remove(); if (done) done(); }
+    }
+    requestAnimationFrame(frame);
+  }
+  function plop(i) {
+    var el = document.querySelector('[data-key="b' + i + '"]');
+    if (!el) return;
+    el.classList.add('plop');
+    setTimeout(function () { el.classList.remove('plop'); }, 600);
+  }
+  function confetti() {
+    if (reduce) return;
+    var r = $('#total').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var cols = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#8338ec'];
+    for (var i = 0; i < 36; i++) {
+      (function (i) {
+        var d = document.createElement('div');
+        d.className = 'conf'; d.style.background = cols[i % 5]; d.style.left = cx + 'px'; d.style.top = cy + 'px';
+        document.body.appendChild(d);
+        var a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 220;
+        var dx = Math.cos(a) * v, dy = Math.sin(a) * v - 120;
+        var anim = d.animate([
+          { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(' + dx + 'px,' + (dy + 260) + 'px) rotate(' + (Math.random() * 720) + 'deg)', opacity: 0 }
+        ], { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.4,1)' });
+        anim.onfinish = function () { d.remove(); };
+      })(i);
+    }
+  }
+
+  /* ---------- actions: denary ---------- */
+  function throwTile(digit, bi, origin) {
+    if (digit === null || S.incoming[bi]) return;
+    var from = rectOf('[data-key="d' + digit + '"]'), to = rectOf('[data-key="b' + bi + '"] .rim');
+    if (!from || !to) return;
+    var start = origin ? { left: origin.x - from.width / 2, top: origin.y - from.height / 2, width: from.width, height: from.height } : from;
+    S.incoming[bi] = true; S.selected = null; clearHints();
+    render(); evaluate();
+    var ep = S.epoch;
+    fly(String(digit), start, to, function () {
+      if (ep !== S.epoch) return;
+      delete S.incoming[bi]; S.slots[bi] = digit;
+      render(); plop(bi); evaluate();
+    });
+  }
+  function returnDigit(bi) {
+    var digit = S.slots[bi];
+    if (digit === null || S.incoming[bi]) return;
+    var from = rectOf('[data-key="b' + bi + '"] .vessel'), to = rectOf('[data-key="d' + digit + '"]');
+    if (!from || !to) return;
+    S.slots[bi] = null; clearHints();
+    render(); evaluate();
+    fly(String(digit), centred(from, to), to, null);
+  }
+
+  /* ---------- actions: binary ---------- */
+  function toggleBit(i, origin) {
+    if (S.incoming[i]) return;
+    var ep = S.epoch;
+    var sp = rectOf('[data-supply]'), vessel = rectOf('[data-key="b' + i + '"] .vessel'), rim = rectOf('[data-key="b' + i + '"] .rim');
+    if (!sp || !vessel || !rim) return;
+    clearHints();
+    if (S.bitArr[i] === 0) {
+      S.incoming[i] = true;
+      var start = origin ? { left: origin.x - sp.width / 2, top: origin.y - sp.height / 2, width: sp.width, height: sp.height } : sp;
+      render(); evaluate();
+      fly('1', start, rim, function () {
+        if (ep !== S.epoch) return;
+        delete S.incoming[i]; S.bitArr[i] = 1;
+        render(); plop(i); evaluate();
+      });
+    } else {
+      S.bitArr[i] = 0;
+      render(); evaluate();
+      fly('1', centred(vessel, sp), sp, null);
+    }
+  }
+
+  /* ---------- actions: binary to denary ---------- */
+  function pickBucket(i) {
+    if (S.solved || S.incoming[i]) return;
+    var idx = S.picked.indexOf(i);
+    if (S.bitArr[i] === 0) { setMsg('That bucket holds a 0, so it adds nothing to the total.'); return; }
+    S.b2dMsg = ''; clearHints();
+    if (idx >= 0) { S.picked.splice(idx, 1); render(); evaluate(); return; }
+    var from = rectOf('[data-key="b' + i + '"] .vessel'), to = rectOf('#sum');
+    if (!from || !to) return;
+    S.incoming[i] = true; render(); evaluate();
+    var ep = S.epoch;
+    fly(String(places()[i]), from, to, function () {
+      if (ep !== S.epoch) return;
+      delete S.incoming[i]; S.picked.push(i);
+      render(); plop(i); evaluate();
+    }, 60);
+  }
+  function checkAnswer() {
+    if (S.mode !== 'b2d' || S.solved) return;
+    var inp = $('#ans'), raw = (inp ? inp.value : S.guess).trim(), pl = places();
+    S.guess = raw;
+    if (!/^[0-9]+$/.test(raw)) {
+      S.b2dMsg = 'Type your answer as a whole number, using the digits 0 to 9.';
+      render(); evaluate(); return;
+    }
+    var g = parseInt(raw, 10), bin = S.bitArr.join(''), all = pl.reduce(function (a, b) { return a + b; }, 0);
+    S.lastGuess = g;
+    if (g === S.target) {
+      S.solved = true; S.b2dMsg = '';
+      if (!S.scored) { S.scored = true; S.score++; }
+      render(); evaluate(); confetti(); return;
+    }
+    S.b2dTries++;
+    if (raw.replace(/^0+/, '') === bin.replace(/^0+/, '')) S.b2dMsg = 'That is the binary number again. We need its value in denary: add up the values of the buckets holding a 1.';
+    else if (g === all) S.b2dMsg = 'That is every bucket added together. Only the buckets holding a 1 count.';
+    else S.b2dMsg = 'Not quite: your answer is too ' + (g > S.target ? 'high' : 'low') + '. Check you have added only the buckets holding a 1.' + (S.b2dTries >= 2 ? ' Try the Hint button.' : '');
+    render(); evaluate();
+  }
+
+  function onBucket(i, origin) {
+    if (S.mode === 'b2d') { pickBucket(i); return; }
+    if (S.mode === 'binary') { toggleBit(i, origin); return; }
+    if (S.selected !== null) throwTile(S.selected, i, origin);
+    else if (S.slots[i] !== null) returnDigit(i);
+    else setMsg('Choose a digit first, then choose its bucket.');
+  }
+
+  /* ---------- hints ---------- */
+  function hint() {
+    var pl = places();
+    if (S.solved) { setMsg('You have solved this one already. Try a new number!'); return; }
+    if (S.mode === 'b2d') {
+      var ones = [];
+      for (var q = 0; q < pl.length; q++) if (S.bitArr[q] === 1) ones.push(pl[q]);
+      S.hint++; S.hintAll = true; S.b2dMsg = ''; render();
+      if (S.hint === 1) setMsg('Only the buckets holding a 1 count (they are highlighted). Buckets holding a 0 add nothing.');
+      else if (S.hint === 2) setMsg('Add up the values of the highlighted buckets: ' + ones.join(' + ') + ' = ?');
+      else setMsg(ones.join(' + ') + ' = ' + S.target + '. Type ' + S.target + ' in the box.');
+      return;
+    }
+    if (S.mode === 'denary') {
+      var req = requiredDigits(), col = -1;
+      for (var k = 0; k < req.length; k++) { if (digitAt(k) !== req[k]) { col = k; break; } }
+      if (col < 0) { setMsg('Every bucket is right. Wait for the last digit to land.'); return; }
+      S.hint++;
+      if (S.hint === 1) {
+        S.hintTile = null; S.hintBucket = col; render();
+        setMsg('Look at the ' + bucketLabel(col) + ' bucket. How many ' + (pl[col] === 1 ? 'units' : pl[col] + 's') + ' are there in ' + S.target + '?');
+      } else {
+        S.hintTile = req[col]; S.hintBucket = col; render();
+        setMsg('The ' + bucketLabel(col) + ' bucket needs a ' + req[col] + ', because ' + req[col] + ' × ' + pl[col] + ' = ' + (req[col] * pl[col]) + '.');
+      }
+    } else {
+      var left = 0, found = -1, rem = 0, need = 0;
+      for (var i = 0; i < pl.length; i++) {
+        rem = S.target - left; need = rem >= pl[i] ? 1 : 0;
+        if (S.bitArr[i] !== need) { found = i; break; }
+        left += need * pl[i];
+      }
+      if (found < 0) { setMsg('Every bucket is right. Wait for the last one to land.'); return; }
+      S.hint++;
+      if (S.hint === 1) {
+        S.hintBucket = null; render();
+        setMsg('Work from the biggest bucket. You still need ' + rem + ' to make. Does ' + pl[found] + ' fit into ' + rem + '?');
+      } else {
+        S.hintBucket = found; render();
+        setMsg(need ? 'Yes, ' + pl[found] + ' fits, so it needs a 1.' : 'No, ' + pl[found] + ' is bigger than ' + rem + ', so that bucket must be 0.');
+      }
+    }
+  }
+
+  /* ---------- mode / controls ---------- */
+  function setMode(m) {
+    S.mode = m; S.prev = null;
+    $('#tabDen').setAttribute('aria-selected', m === 'denary');
+    $('#tabBin').setAttribute('aria-selected', m === 'binary');
+    $('#tabB2D').setAttribute('aria-selected', m === 'b2d');
+    $('#colsWrap').classList.toggle('hide', m !== 'denary');
+    $('#bitsWrap').classList.toggle('hide', m === 'denary');
+    $('#btnReset').textContent = m === 'b2d' ? 'Clear working' : 'Empty buckets';
+    $('#tlLabel').textContent = 'Total in the buckets';
+    $('#ttLabel').textContent = 'Target';
+    if (m === 'denary') {
+      $('#blurb').textContent = 'Each bucket is worth ten times the one to its right. A digit\'s value is the digit × its bucket\'s value, so a 7 in the 10s bucket is worth 70. An empty bucket holds 0.';
+      $('#prompt').textContent = 'Show this number using the buckets';
+      $('#trayLabel').textContent = 'Pick a digit from 0 to 9 (or drag it), then choose the bucket it belongs in. Click a filled bucket to empty it.';
+    } else if (m === 'b2d') {
+      $('#blurb').textContent = 'Each bucket is worth twice the one to its right. A bucket holding a 1 adds its value to the total and a bucket holding a 0 adds nothing. Add up the buckets holding a 1 to convert the binary number to denary.';
+      $('#prompt').textContent = 'What is this binary number in denary?';
+      $('#trayLabel').textContent = 'Click each bucket holding a 1 to throw its value into your working. Then add them up, type the total and press Check.';
+    } else {
+      $('#blurb').textContent = 'Each bucket is worth twice the one to its right. A bucket holds only a 0 or a 1: 1 means "use this value" and 0 means "leave it out". Which buckets add up to the denary number?';
+      $('#prompt').textContent = 'Write this denary number in binary';
+      $('#trayLabel').textContent = 'Click a bucket (or drag the 1 onto it) to throw a 1 in. Click a bucket holding a 1 to take it out.';
+    }
+    generate();
+  }
+
+  $('#tabDen').addEventListener('click', function () { if (S.mode !== 'denary') setMode('denary'); });
+  $('#tabBin').addEventListener('click', function () { if (S.mode !== 'binary') setMode('binary'); });
+  $('#tabB2D').addEventListener('click', function () { if (S.mode !== 'b2d') setMode('b2d'); });
+  $('#colsSel').addEventListener('change', function (e) { S.cols = +e.target.value; S.prev = null; generate(); });
+  $('#bitsSel').addEventListener('change', function (e) { S.nbits = +e.target.value; S.prev = null; generate(); });
+  $('#showVals').addEventListener('change', function (e) { S.showVals = e.target.checked; render(); });
+  $('#btnNew').addEventListener('click', generate);
+  $('#btnHint').addEventListener('click', hint);
+  $('#btnReset').addEventListener('click', resetBuckets);
+
+  var stage = $('#stage');
+  stage.addEventListener('click', function (e) {
+    if (e.target.closest('#btnCheck')) { checkAnswer(); return; }
+    var b = e.target.closest('[data-bucket]');
+    if (b) { onBucket(+b.getAttribute('data-bucket')); return; }
+    var t = e.target.closest('[data-digit]');
+    if (t && S.mode === 'denary') {
+      var d = +t.getAttribute('data-digit');
+      S.selected = S.selected === d ? null : d;
+      clearHints(); render();
+      setMsg(S.selected === null ? 'Pick a digit from 0 to 9, then choose the bucket it belongs in.' : 'Now choose the bucket for the ' + d + '.');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-bucket],[data-digit]')) {
+      e.preventDefault(); e.target.click();
+    }
+  });
+
+  stage.addEventListener('input', function (e) { if (e.target.id === 'ans') S.guess = e.target.value; });
+  stage.addEventListener('keydown', function (e) { if (e.target.id === 'ans' && e.key === 'Enter') { e.preventDefault(); checkAnswer(); } });
+
+  /* drag and drop (mouse); tap/click works everywhere */
+  function clearOver() {
+    var o = document.querySelectorAll('.bucket.over');
+    for (var i = 0; i < o.length; i++) o[i].classList.remove('over');
+  }
+  stage.addEventListener('dragstart', function (e) {
+    var t = e.target.closest ? e.target.closest('[data-digit],[data-supply]') : null;
+    if (!t) return;
+    if (t.hasAttribute('data-supply')) { e.dataTransfer.setData('text/plain', '1'); e.dataTransfer.effectAllowed = 'move'; return; }
+    var id = +t.getAttribute('data-digit');
+    S.selected = id; t.classList.add('sel');
+    e.dataTransfer.setData('text/plain', String(id)); e.dataTransfer.effectAllowed = 'move';
+  });
+  stage.addEventListener('dragover', function (e) {
+    var b = e.target.closest('[data-bucket]');
+    if (!b) return;
+    e.preventDefault(); clearOver(); b.classList.add('over');
+  });
+  stage.addEventListener('dragleave', function (e) {
+    if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-bucket]')) clearOver();
+  });
+  stage.addEventListener('drop', function (e) {
+    var b = e.target.closest('[data-bucket]');
+    if (!b || S.mode === 'b2d') return;
+    e.preventDefault(); clearOver();
+    var i = +b.getAttribute('data-bucket'), origin = { x: e.clientX, y: e.clientY };
+    if (S.mode === 'binary') { if (S.bitArr[i] === 0) toggleBit(i, origin); }
+    else if (S.selected !== null) throwTile(S.selected, i, origin);
+  });
+  stage.addEventListener('dragend', clearOver);
+
+  setMode('denary');
+})();
+</script>
+</body>
+</html>
